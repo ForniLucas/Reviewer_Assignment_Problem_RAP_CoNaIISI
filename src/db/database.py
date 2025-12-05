@@ -72,9 +72,27 @@ Abstract: {abstract}
 
 
 
-
-
+# database.py
 def get_evaluadores_from_db():
+    """Obtiene TODOS los evaluadores de la base de datos."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        # Se elimina "WHERE google_scholar_id IS NOT NULL" y se agrega nombreyapellido
+        cur.execute("SELECT id_evaluador, nombreyapellido, google_scholar_id FROM evaluadores;")
+        
+        # Devolver como una lista de diccionarios para fácil acceso
+        evaluadores = [{'id_evaluador': row[0], 'nombreyapellido': row[1], 'google_scholar_id': row[2]} for row in cur.fetchall()]
+        cur.close()
+        return evaluadores
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f"Error al obtener evaluadores: {error}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+#def get_evaluadores_from_db():
     """Obtiene los evaluadores que tienen un ID de Google Scholar."""
     conn = get_db_connection()
     cur = conn.cursor()
@@ -90,8 +108,35 @@ def get_evaluadores_from_db():
         conn.close()
 
         
-
+# database.py
 def insert_evaluator_abstracts(evaluador_id, df_abstracts):
+    """Inserta los abstracts y embeddings de un evaluador, borrando los anteriores."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # --- LÍNEA NUEVA ---
+        # Primero, borramos los abstracts viejos de este evaluador para evitar duplicados.
+        cur.execute("DELETE FROM abstract_evaluador WHERE id_evaluador = %s;", (evaluador_id,))
+        # -------------------
+
+        for _, row in df_abstracts.iterrows():
+            embedding_list = row['embedding']
+            if embedding_list is not None:
+                cur.execute(
+                    """INSERT INTO abstract_evaluador (id_evaluador, texto_abstract, embedding) 
+                       VALUES (%s, %s, %s);""",
+                    (evaluador_id, row['abstract'], embedding_list)
+                )
+        conn.commit()
+        print(f"Se insertaron {len(df_abstracts)} abstracts para el evaluador {evaluador_id}.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error al insertar abstracts para el evaluador {evaluador_id}: {e}")
+    finally:
+        cur.close()
+        conn.close()
+        
+#def insert_evaluator_abstracts(evaluador_id, df_abstracts):
     """Inserta los abstracts y embeddings de un evaluador en la base de datos."""
     conn = get_db_connection()
     cur = conn.cursor()

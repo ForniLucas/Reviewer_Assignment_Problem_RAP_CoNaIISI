@@ -15,7 +15,7 @@ NODO_FICTICIO = 0
 
 def asignar():
     df_costs, df_evaluadores, df_articulos, df_ejes, evaluador_eje = get_data_for_optimization()
-
+   
     if df_costs.empty or df_evaluadores.empty or df_articulos.empty or df_ejes.empty:
         print("Error: No se pudieron cargar los datos necesarios de la base de datos")
         return
